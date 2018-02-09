@@ -62,23 +62,23 @@ def get_db_cursor(dbhost, dbname, dbuser, dbpass, mysql=True):
     cursor = db.cursor()
     return db, cursor
 
-def check_db_info(adminuser, adminpass, mysql):
+def check_db_info(host, adminuser, adminpass, mysql):
     """Validate database login information"""
     try:
         if mysql:
             try:
                 import mysql.connector as mysqld
-                db = mysqld.connect(user=adminuser, password=adminpass)
+                db = mysqld.connect(host=host, user=adminuser, password=adminpass)
             except ImportError:
                 try:
                     import MySQLdb as mysqld
-                    db = mysqld.connect(user=adminuser, passwd=adminpass)
+                    db = mysqld.connect(host=host, user=adminuser, passwd=adminpass)
                 except ImportError:
                     print(e)
                     return False
         else:
             import pgdb
-            db = pgdb.connect(database="postgres", user=adminuser, password=adminpass)
+            db = pgdb.connect(host=host, database="postgres", user=adminuser, password=adminpass)
     except mysqld.Error as e:
         print(e)
         return False
@@ -93,14 +93,17 @@ def create_db(adminuser, adminpass, dbhost, dbname, dbuser, dbpass, mysql, adapt
     """
 
     create_str = "CREATE DATABASE IF NOT EXISTS %s;" % dbname
-    grant_str = "GRANT ALL ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s';" % (dbname, dbuser, dbpass)
+    user_str = "CREATE USER '%s'@'%s' IDENTIFIED BY '%s';" % (dbuser, dbpass, dbhost)
+    grant_str = "GRANT ALL ON %s.* TO '%s'@'%s'" % (dbname, dbuser, dbhost)
 
     if mysql:
         try:
+           print dbhost
            db = adaptor.connect(autocommit= True, use_unicode=True, charset="utf8", host=dbhost, user=adminuser, passwd=adminpass)
            cursor = db.cursor()
            cursor.execute(create_str)
-           cursor.execute(grant_str)
+           #cursor.execute(user_str)
+           #cursor.execute(grant_str)
            cursor.execute("FLUSH PRIVILEGES;")
         except adaptor.Error as e:
             print("Error: " + e.args[1])
@@ -291,7 +294,24 @@ def create_datasource_table(cursor):
 (10010, 'XRT Be_med/Any', NULL, NULL, 1, 0, '50,51,52,53,54,55', 9, 0, 0, 1),
 (10011, 'XRT Be_thin/Any', NULL, NULL, 1, 0, '56,57,58,59,60,61', 10, 0, 0, 1),
 (10012, 'XRT C_poly/Any', NULL, NULL, 1, 0, '62,63,64,65,66,67', 11, 0, 0, 1),
-(10013, 'XRT Open/Any', NULL, NULL, 1, 0, '69,70,71,72,73,74', 12, 0, 0, 1);""")
+(10013, 'XRT Open/Any', NULL, NULL, 1, 0, '69,70,71,72,73,74', 12, 0, 0, 1),
+(20036, 'GONG H-alpha' , 'H-alpha images from the GONG/NSO network' , 'Å', 1, 0, '', 0, 0, 0, 0),
+(20037, 'GONG Magnet' , 'Magnetograms from the GONG/NSO network' , 'Mx', 1, 0, '', 0, 0, 0, 0),
+(20038, 'GONG farside' , 'Farside images from the GONG/NSO network', '', 1, 0, '', 0, 0, 0, 0),
+(20039, 'SOLIS LOS' , 'SOLIS VSM, 630.2nm LOS' , 'Å', 1, 0, '', 0, 0, 0, 0),
+(20040, 'SOLIS int.' , 'SOLIS VSM 630.2nm intensity' , 'Å', 1, 0, '', 0, 0, 0, 0),
+(20041, 'SOLIS azi.' , 'SOLIS VSM 630.2nm azimuth' , 'Å' , 1, 0, '', 0, 0, 0, 0),
+(20042, 'SOLIS inc.' , 'SOLIS VSM 630.2nm inclination' , 'Å' , 1, 0, '', 0, 0, 0, 0),
+(20043, 'SOLIS fill.' , 'SOLIS VSM 630.2nm filling factor' , 'Å' , 1, 0, '', 0, 0, 0, 0),
+(20044, 'SOLIS Core' , 'SOLIS VSM 854.2nm core flux density' , 'Å' , 1, 0, '', 0, 0, 0, 0),
+(20045, 'SOLIS Wing' , 'SOLIS VSM 854.2nm wing flux density' , 'Å' , 1, 0, '', 0, 0, 0, 0),
+(20046, 'SOLIS 1083' , 'SOLIS VSM 1083nm' , 'Å' , 1, 0, '', 0, 0, 0, 0),
+(20047, 'ROB-USET' , 'H-alpha from ROB' , 'Å' , 1, 0, '', 0, 0, 0, 0),
+(20048, 'GOES-SXI' , 'GOES SXI images' , 'Å' , 1, 0, '', 0, 0, 0, 0),
+(25000, 'ROB-Humain' , 'Radio data from ROB' , '' , 1, 0, '', 0, 0, 0, 0),
+(20050, 'Kanzelhoehe' , 'Kanzelhoehe data' , 'Å' , 1, 0, '', 0, 0, 0, 0),
+(20051, 'NRH' , 'Nancay radio images' , 'MHz' , 1, 0, '', 0, 0, 0, 0),
+(20052, 'NRH' , 'Nancay radio images' , 'MHz' , 1, 0, '', 0, 0, 0, 0);""")
 
 
 
@@ -349,6 +369,23 @@ INSERT INTO `datasource_property` (`sourceId`, `label`, `name`, `fitsName`, `des
 (33, 'Observatory', 'Yohkoh', 'Yohkoh', 'Yohkoh (Solar-A)', 1),
 (34, 'Observatory', 'Yohkoh', 'Yohkoh', 'Yohkoh (Solar-A)', 1),
 (35, 'Observatory', 'Yohkoh', 'Yohkoh', 'Yohkoh (Solar-A)', 1),
+(20036, 'Observatory', 'NSO-GONG' , 'NSO-GONG' , 'GONG NSO H-alpha network', 1),
+(20037, 'Observatory', 'NSO-GONG' , 'NSO-GONG' , 'GONG NSO H-alpha network', 1),
+(20038, 'Observatory', 'NSO-GONG' , 'NSO-GONG' , 'GONG NSO H-alpha network', 1),
+(20039, 'Observatory', 'NSO-SOLIS' , 'NSO-SOLIS' , 'GONG SOLIS', 1),
+(20040, 'Observatory', 'NSO-SOLIS' , 'NSO-SOLIS' , 'GONG SOLIS', 1),
+(20041, 'Observatory', 'NSO-SOLIS' , 'NSO-SOLIS' , 'GONG SOLIS', 1),
+(20042, 'Observatory', 'NSO-SOLIS' , 'NSO-SOLIS' , 'GONG SOLIS', 1),
+(20043, 'Observatory', 'NSO-SOLIS' , 'NSO-SOLIS' , 'GONG SOLIS', 1),
+(20044, 'Observatory', 'NSO-SOLIS' , 'NSO-SOLIS' , 'GONG SOLIS', 1),
+(20045, 'Observatory', 'NSO-SOLIS' , 'NSO-SOLIS' , 'GONG SOLIS', 1),
+(20046, 'Observatory', 'NSO-SOLIS' , 'NSO-SOLIS' , 'GONG SOLIS', 1),
+(20047, 'Observatory', 'ROB-USET' , 'ROB-USET' , 'Royal observatory of Belgium', 1),
+(20048, 'Observatory', 'GOES' , 'GOES' , 'GOES satellite', 1),
+(25000, 'Observatory', 'ROB-Humain' , 'ROB-Humain' , 'Royal observatory of Belgium', 1),
+(20050, 'Observatory', 'Kanzelhoehe' , 'Kanzelhoehe' , 'Kanzelhoehe', 1),
+(20051, 'Observatory', 'NRH' , 'NRH' , 'NRH', 1),
+(20052, 'Observatory', 'NRH' , 'NRH' , 'NRH', 1),
 (0, 'Instrument', 'EIT', 'EIT', 'Extreme ultraviolet Imaging Telescope', 2),
 (1, 'Instrument', 'EIT', 'EIT', 'Extreme ultraviolet Imaging Telescope', 2),
 (2, 'Instrument', 'EIT', 'EIT', 'Extreme ultraviolet Imaging Telescope', 2),
@@ -385,6 +422,23 @@ INSERT INTO `datasource_property` (`sourceId`, `label`, `name`, `fitsName`, `des
 (33, 'Instrument', 'SXT', 'SXT', 'Soft X-ray Telescope', 2),
 (34, 'Instrument', 'SXT', 'SXT', 'Soft X-ray Telescope', 2),
 (35, 'Instrument', 'SXT', 'SXT', 'Soft X-ray Telescope', 2),
+(20036, 'Instrument', 'GONG' , 'GONG' , 'GONG network', 2),
+(20037, 'Instrument', 'GONG' , 'GONG' , 'GONG network', 2),
+(20038, 'Instrument', 'GONG' , 'GONG' , 'GONG network', 2),
+(20039, 'Instrument', 'VSM' , 'VSM' , 'VSM from SOLIS', 2),
+(20040, 'Instrument', 'VSM' , 'VSM' , 'VSM from SOLIS', 2),
+(20041, 'Instrument', 'VSM' , 'VSM' , 'VSM from SOLIS', 2),
+(20042, 'Instrument', 'VSM' , 'VSM' , 'VSM from SOLIS', 2),
+(20043, 'Instrument', 'VSM' , 'VSM' , 'VSM from SOLIS', 2),
+(20044, 'Instrument', 'VSM' , 'VSM' , 'VSM from SOLIS', 2),
+(20045, 'Instrument', 'VSM' , 'VSM' , 'VSM from SOLIS', 2),
+(20046, 'Instrument', 'VSM' , 'VSM' , 'VSM from SOLIS', 2),
+(20047, 'Instrument', 'H-alpha' , 'H-alpha' , 'H-alpha telescope', 2),
+(20048, 'Instrument', 'SXI' , 'SXI' , 'SXI on GOES satellite', 2),
+(25000, 'Instrument', 'CALLISTO' , 'CALLISTO' , 'CALLISTO', 2),
+(20050, 'Instrument', 'H-alpha' , 'H-alpha' , 'H-alpha telescope', 2),
+(20051, 'Instrument', 'NRH2' , 'NRH2' , 'NRH2', 2),
+(20052, 'Instrument', 'NRH2' , 'NRH2' , 'NRH2', 2),
 (4, 'Detector', 'C2', 'C2', 'Coronograph 2', 3),
 (5, 'Detector', 'C3', 'C3', 'Coronograph 3', 3),
 (20, 'Detector', 'EUVI', 'EUVI', 'Extreme Ultraviolet Imager', 3),
@@ -399,6 +453,23 @@ INSERT INTO `datasource_property` (`sourceId`, `label`, `name`, `fitsName`, `des
 (29, 'Detector', 'COR2', 'COR2', 'Coronograph 2', 3),
 (30, 'Detector', 'COR1', 'COR1', 'Coronograph 1', 3),
 (31, 'Detector', 'COR2', 'COR2', 'Coronograph 2', 3),
+(20036, 'Detector', 'H-alpha' , 'H-alpha' , 'H-alpha', 3),
+(20037, 'Detector', 'GONG' , 'GONG' , 'GONG', 3),
+(20038, 'Detector', 'GONG' , 'GONG' , 'GONG', 3),
+(20039, 'Detector', 'Strength' , 'Strength' , 'GONG', 3),
+(20040, 'Detector', 'Intensity' , 'Intensity' , 'GONG', 3),
+(20041, 'Detector', 'Azimuth' , 'Azimuth' , 'GONG', 3),
+(20042, 'Detector', 'Inclination' , 'Inclination' , 'GONG', 3),
+(20043, 'Detector', 'FillFactor' , 'FillFactor' , 'GONG', 3),
+(20044, 'Detector', 'CoreFluxDens' , 'CoreFluxDens' , 'GONG', 3),
+(20045, 'Detector', 'CoreWingInt' , 'CoreWingInt' , 'GONG', 3),
+(20046, 'Detector', 'Intensity' , 'Intensity' , 'GONG', 3),
+(20047, 'Detector', 'H-alpha' , 'H-alpha' , 'H-alpha', 3),
+(20048, 'Detector', 'SXI' , 'SXI' , 'SXI', 3),
+(25000, 'Detector', 'CALLISTO' , 'CALLISTO' , 'CALLISTO', 3),
+(20050, 'Detector', 'H-alpha' , 'H-alpha' , 'H-alpha', 3),
+(20051, 'Detector', 'NRH2' , 'NRH2' , 'NRH2', 3),
+(20052, 'Detector', 'NRH2' , 'NRH2' , 'NRH2', 3),
 (0, 'Measurement', '171', '171', '171 Ångström extreme ultraviolet', 3),
 (1, 'Measurement', '195', '195', '195 Ångström extreme ultraviolet', 3),
 (2, 'Measurement', '284', '284', '284 Ångström extreme ultraviolet', 3),
@@ -432,6 +503,23 @@ INSERT INTO `datasource_property` (`sourceId`, `label`, `name`, `fitsName`, `des
 (30, 'Measurement', 'white-light', 'white-light', 'White Light', 4),
 (31, 'Measurement', 'white-light', 'white-light', 'White Light', 4),
 (32, 'Measurement', '174', '174', '174 Ångström extreme ultraviolet', 3),
+(20036, 'Measurement', '6562' , '6562' , 'H-alpha', 4),
+(20037, 'Measurement', 'magnetogram' , 'magnetogram' , 'Magnetogram', 4),
+(20038, 'Measurement', 'farside' , 'farside' , 'farside GONG image', 4),
+(20039, 'Measurement', '6302' , '6302' , 'SOLIS v_95', 4),
+(20040, 'Measurement', '6302' , '6302' , 'SOLIS v_95', 4),
+(20041, 'Measurement', '6302' , '6302' , 'SOLIS v_95', 4),
+(20042, 'Measurement', '6302' , '6302' , 'SOLIS v_95', 4),
+(20043, 'Measurement', '6302' , '6302' , 'SOLIS v_95', 4),
+(20044, 'Measurement', '8542' , '8542' , 'SOLIS v_82', 4),
+(20045, 'Measurement', '8542' , '8542' , 'SOLIS v_82', 4),
+(20046, 'Measurement', '1083' , '1083' , 'SOLIS v_22', 4),
+(20047, 'Measurement', '6562' , '6562' , 'H-alpha', 4),
+(20048, 'Measurement', '6562' , '6562' , 'H-alpha', 4),
+(25000, 'Measurement', 'RADIOGRAM' , 'RADIOGRAM' , 'RADIOGRAM', 4),
+(20050, 'Measurement', '6562' , '6562' , 'H-alpha', 4),
+(20051, 'Measurement', '150.9MHz' , '150.9MHz' , 'FREQ', 4),
+(20052, 'Measurement', '432.0MHz' , '432.0MHz' , 'FREQ', 4),
 (33, 'Filter', 'AlMgMn', 'AlMgMn', 'Al/Mg/Mn filter (2.4 Å - 32 Å pass band)', 3),
 (34, 'Measurement', 'thin-Al', 'thin-Al', '11.6 μm Al filter (2.4 Å - 13 Å pass band)', 3),
 (35, 'Measurement', 'white-light', 'white-light', 'No filter', 3),
@@ -692,8 +780,8 @@ def create_movies_table(cursor):
       `numFrames`         SMALLINT UNSIGNED,
       `width`             SMALLINT UNSIGNED,
       `height`            SMALLINT UNSIGNED,
-      `buildTimeStart`    TIMESTAMP,
-      `buildTimeEnd`      TIMESTAMP,
+      `buildTimeStart`    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      `buildTimeEnd`      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       `size` tinyint(2) NOT NULL DEFAULT '0',
        PRIMARY KEY (`id`),
        KEY `startDate` (`startDate`),

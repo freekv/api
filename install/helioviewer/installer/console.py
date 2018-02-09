@@ -77,9 +77,7 @@ class HelioviewerConsoleInstaller:
 
         print("Please enter Helioviewer.org database user information")
         dbuser, dbpass, mysql = self.get_database_info()
-
         db, cursor = get_db_cursor(dbhost, dbname, dbuser, dbpass, mysql)
-
         return db, cursor, mysql
 
     def create_db(self):
@@ -91,11 +89,12 @@ class HelioviewerConsoleInstaller:
         # Get database information
         print("\nPlease enter existing database admin information:")
         dbhost = self.get_database_host()
-        dbuser, dbpass, mysql = self.get_database_info()
+        dbuser, dbpass, mysql = self.get_database_info(dbhost)
 
         # Setup database schema
+        print "SETTING UP"
+        db, cursor = setup_database_schema(dbuser, dbpass, dbhost, dbname, hvuser, hvpass, mysql)
         try:
-            db, cursor = setup_database_schema(dbuser, dbpass, dbhost, dbname, hvuser, hvpass, mysql)
             return db, cursor, mysql
         except OSError as err:
             print("OS error: {0}".format(err))
@@ -167,7 +166,7 @@ class HelioviewerConsoleInstaller:
             else:
                 return options[int(choice)]
 
-    def get_database_info(self):
+    def get_database_info(self, dbhost):
         ''' Gets database type and administrator login information '''
         import getpass
 
@@ -183,7 +182,7 @@ class HelioviewerConsoleInstaller:
             # MySQL?
             mysql = dbtype is "mysql"
 
-            if not check_db_info(dbuser, dbpass, mysql):
+            if not check_db_info(dbhost, dbuser, dbpass, mysql):
                 print("Unable to connect to the database. Please check your login information and try again.")
             else:
                 return dbuser,dbpass,mysql
