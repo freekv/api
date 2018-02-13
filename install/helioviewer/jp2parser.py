@@ -19,13 +19,47 @@ from glymur.codestream import Codestream
 from sunpy.util.xml import xml_to_dict
 from os import stat
 from struct import pack, unpack
+import codecs
+import io
 
 __HV_CONSTANT_RSUN__ = 959.644
 __HV_CONSTANT_AU__ = 149597870700
+def parsexml(fptr, offset, length):
+    num_bytes = offset + length - fptr.tell()
+    read_buffer = fptr.read(num_bytes)
+
+    if sys.hexversion < 0x03000000 and codecs.BOM_UTF8 in read_buffer:
+        msg = ('A BOM (byte order marker) was detected and '
+               'removed from the XML contents in the box starting at byte '
+               'offset {offset:d}.')
+        msg = msg.format(offset=offset)
+        warnings.warn(msg, UserWarning)
+        read_buffer = read_buffer.replace(codecs.BOM_UTF8, b'')
+
+    try:
+        text = read_buffer.decode('utf-8')
+    except UnicodeDecodeError as err:
+        decl_start = read_buffer.find(b'<?xml')
+        if decl_start <= -1:
+            msg = ('A problem was encountered while parsing an XML box:'
+                   '\n\n\t"{error}"\n\nNo XML was retrieved.')
+            warnings.warn(msg.format(error=str(err)), UserWarning)
+            return XMLBox(xml=None, length=length, offset=offset)
+
+        text = read_buffer[decl_start:].decode('utf-8')
+
+        msg = ('A UnicodeDecodeError was encountered parsing an XML box '
+               'at byte position {offset:d} ({reason}), but the XML was '
+               'still recovered.')
+        msg = msg.format(offset=offset, reason=err.reason)
+        warnings.warn(msg, UserWarning)
+
+    text = text.rstrip(chr(0))
+    return text
 
 def hv_parse_this_box(fptr, box_id, start, num_bytes):
     try:
-        parser = _BOX_WITH_ID[box_id].parse
+        parser = parsexml
     except KeyError:
         # We don't recognize the box ID, so create an UnknownBox and be
         # done with it.
@@ -253,9 +287,8 @@ class JP2parser:
             A list of headers read from the file
         """
         with open(self._filepath, 'rb') as ifile:
-            xml_box = find_xml(ifile, 0, stat(self._filepath).st_size)
-	xmlstring = ET.tostring(xml_box.xml.find('fits'))
-	pydict = xml_to_dict(xmlstring)["fits"]
+            xml_txt = find_xml(ifile, 0, stat(self._filepath).st_size)
+	pydict = xml_to_dict(xml_txt)["meta"]["fits"]
 
         # Fix types
         for k, v in pydict.iteritems():
