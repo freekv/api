@@ -12,10 +12,107 @@ from sunpy.map import Map
 from sunpy.util.xml import xml_to_dict
 from sunpy.io.header import FileHeader
 from glymur import Jp2k
+
+from glymur.jp2box import UnknownBox, _BOX_WITH_ID
+from glymur.codestream import Codestream
+
 from sunpy.util.xml import xml_to_dict
+from os import stat
+from struct import pack, unpack
 
 __HV_CONSTANT_RSUN__ = 959.644
 __HV_CONSTANT_AU__ = 149597870700
+
+def hv_parse_this_box(fptr, box_id, start, num_bytes):
+    try:
+        parser = _BOX_WITH_ID[box_id].parse
+    except KeyError:
+        # We don't recognize the box ID, so create an UnknownBox and be
+        # done with it.
+        msg = 'Unrecognized box ({0}) encountered.'.format(box_id)
+        warnings.warn(msg)
+        return UnknownBox(box_id, offset=start, length=num_bytes)
+
+    try:
+        xmltxt = parser(fptr, start, num_bytes)
+    except ValueError as err:
+        xmltxt = None
+        msg = ('Encountered an unrecoverable ValueError while parsing a {0} '
+               'box at byte offset {1}.  The original error message was "{2}"')
+        msg = msg.format(box_id.decode('utf-8'), start, str(err))
+        warnings.warn(msg, UserWarning)
+    return xmltxt
+
+def find_xml(fptr, offset, length):
+
+    fptr_read = fptr.read
+    fptr_seek = fptr.seek
+    fptr_tell = fptr.tell
+
+    superbox = []
+
+    if offset == 0:
+        start = 0
+    else:
+        start = fptr_tell()
+
+    while True:
+
+        # Are we at the end of the superbox?
+        if start >= offset + length:
+            break
+
+        read_buffer = fptr_read(8)
+        if len(read_buffer) < 8:
+            msg = 'Extra bytes at end of file ignored.'
+            warnings.warn(msg)
+            break
+
+        (box_length, box_id) = unpack('>I4s', read_buffer)
+        if box_length == 0:
+            # The length of the box is presumed to last until the end of
+            # the file.  Compute the effective length of the box.
+            # num_bytes = os.path.getsize(fptr.name) - fptr.tell() + 8
+
+            # !!! does not work if not top level box, unlikely to occur
+            num_bytes = length - start # length - (start + 8) + 8
+        elif box_length == 1:
+            # The length of the box is in the XL field, a 64-bit value.
+            read_buffer = fptr_read(8)
+            num_bytes, = unpack('>Q', read_buffer)
+        else:
+            # The box_length value really is the length of the box!
+            num_bytes = box_length
+        if box_id == "xml ":
+            return hv_parse_this_box(fptr, box_id, start, num_bytes)
+
+        if box_length == 0:
+            # We're done, box lasted until the end of the file.
+            break
+
+        # Position to the start of the next box.
+        start += num_bytes
+        cur_pos = fptr_tell()
+
+        if num_bytes > length:
+            # Length of the current box goes past the end of the
+            # enclosing superbox.
+            msg = '{0} box has incorrect box length ({1})'
+            msg = msg.format(box_id, num_bytes)
+            warnings.warn(msg)
+        elif cur_pos == start:
+            # At the start of the next box, jump to it.
+            continue
+        elif cur_pos > start:
+            # The box must be invalid somehow, as the file pointer is
+            # positioned past the end of the box.
+            msg = ('{0} box may be invalid, the file pointer is positioned '
+                   '{1} bytes past the end of the box.')
+            msg = msg.format(box_id, cur_pos - start)
+            warnings.warn(msg)
+
+        fptr_seek(start)
+
 
 class JP2parser:
     _filepath = None
@@ -155,13 +252,13 @@ class JP2parser:
         headers : list
             A list of headers read from the file
         """
-        jp2 = Jp2k(self._filepath)
-        xml_box = [box for box in jp2.box if box.box_id == 'xml ']
-        xmlstring = ET.tostring(xml_box[0].xml.find('fits'))
-        pydict = xml_to_dict(xmlstring)["fits"]
-    
+        with open(self._filepath, 'rb') as ifile:
+            xml_box = find_xml(ifile, 0, stat(self._filepath).st_size)
+	xmlstring = ET.tostring(xml_box.xml.find('fits'))
+	pydict = xml_to_dict(xmlstring)["fits"]
+
         # Fix types
-        for k, v in pydict.items():
+        for k, v in pydict.iteritems():
             if v.isdigit():
                 pydict[k] = int(v)
             elif self._is_float(v):
@@ -172,7 +269,6 @@ class JP2parser:
             pydict['comment'] = pydict['comment'].replace("\n", "")
     
         self._data = pydict
-        
         return [FileHeader(pydict)]
     
     
