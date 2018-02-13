@@ -49,7 +49,7 @@ class Image_JPEG2000_JPXImage
     protected function buildJPXImage($frames, $linked, $kduMerge = HV_KDU_MERGE_BIN)
     {
         //Append filepaths to kdu_merge command
-        $cmd =  "$kduMerge -i ";
+        $cmd =  "PATH=\"\" $kduMerge -i ";
 
         foreach ($frames as $jp2) {
             if ( @filesize($jp2) === false ) {
@@ -72,9 +72,21 @@ class Image_JPEG2000_JPXImage
         $cmd .= " -o " . $this->outputFile;
 
         // Execute kdu_merge command
-        exec(escapeshellcmd($cmd), $output, $return);
+        $this->_shell_exec(escapeshellcmd($cmd), $output, $return);
     }
 
+    private function _shell_exec($cmd, &$stdout=null, &$stderr=null) {
+        $_ENV["PATH"] = "";
+        $proc = proc_open($cmd,[
+            1 => ['pipe','w'],
+            2 => ['pipe','w'],
+        ],$pipes);
+        $stdout = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+        return proc_close($proc);
+    }
     /**
      * Prints a JPX image to the screen
      *
