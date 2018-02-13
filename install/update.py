@@ -37,6 +37,7 @@ def main(argv):
     images = []
 
     # Move images to main archive
+    db, cursor = get_db_cursor(options.dbhost, options.dbname, options.dbuser, options.dbpass)
     for filepath in filepaths:
         dest = os.path.join(options.destination, 
                             os.path.relpath(filepath, options.source))
@@ -53,10 +54,15 @@ def main(argv):
             os.makedirs(directory)
 
         shutil.move(filepath, dest)
+        if len(images)>=500:
+            process_jp2_images(images, options.destination, cursor, True)
+            del images
+            images = []
+            print "flushed"
     
     # Add images to the database
-    db, cursor = get_db_cursor(options.dbhost, options.dbname, options.dbuser, options.dbpass)
-    process_jp2_images(images, options.destination, cursor, True)    
+    if len(images)>0:
+        process_jp2_images(images, options.destination, cursor, True)    
     cursor.close()
     
     print('Finished!')
