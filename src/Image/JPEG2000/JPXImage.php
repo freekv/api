@@ -68,6 +68,9 @@ class Image_JPEG2000_JPXImage
           $msg = sprintf("Error creating JPX file\n" .
                          "COMMAND:\n%s\nARGUMENTS:\n%s\nRETURN VALUE: %d\nOUTPUT:\n%s",
                          $cmd, $stdin, $return, $output);
+          if(file_exists($this->outputFile)) {
+              unlink($this->outputFile);
+          }
           throw new Exception($msg, 14);
         }
     }
