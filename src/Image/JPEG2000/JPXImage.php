@@ -45,48 +45,56 @@ class Image_JPEG2000_JPXImage
      * @param string $pathCmd  [Optional] String to prepend to merge command (e.g. for setting environmental varibles)
      *
      * @return void
-     */
+     */ 
     protected function buildJPXImage($frames, $linked, $kduMerge = HV_KDU_MERGE_BIN)
     {
-        //Append filepaths to kdu_merge command
-        $cmd =  "PATH=\"\" $kduMerge -i ";
+        $cmd =  "PATH=\"\" $kduMerge -s -";
 
-        foreach ($frames as $jp2) {
-            if ( @filesize($jp2) === false ) {
-                if(!empty($jp2)){
-	                error_log('File is missing:  '.$jp2);
-                }
-            }else {
-                $cmd .= "$jp2,";
-            }
-        }
+        // Input JP2s
+        $stdin = '-i ' . implode(',', $frames);
 
-        // Drop trailing comma
-        $cmd = substr($cmd, 0, -1);
-
-        // Virtual JPX files
+        // Virtual JPX
         if ($linked) {
-            $cmd .= " -links";
+            $stdin .= ' -links';
         }
 
-        $cmd .= " -o " . $this->outputFile;
+        // Output JPX file
+        $stdin .= ' -o ' . $this->outputFile;
 
         // Execute kdu_merge command
-        $this->_shell_exec(escapeshellcmd($cmd), $output, $return);
+        $output = '';
+        $return = $this->p2sc_execute($cmd, $stdin, $output);
+        if ($return != 0) {
+          $msg = sprintf("Error creating JPX file\n" .
+                         "COMMAND:\n%s\nARGUMENTS:\n%s\nRETURN VALUE: %d\nOUTPUT:\n%s",
+                         $cmd, $stdin, $return, $output);
+          throw new Exception($msg, 14);
+        }
     }
 
-    private function _shell_exec($cmd, &$stdout=null, &$stderr=null) {
-        $_ENV["PATH"] = "";
-        $proc = proc_open($cmd,[
-            1 => ['pipe','w'],
-            2 => ['pipe','w'],
-        ],$pipes);
-        $stdout = stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-        $stderr = stream_get_contents($pipes[2]);
-        fclose($pipes[2]);
-        return proc_close($proc);
+    private function p2sc_execute($cmd, $stdin, &$output) {
+        $dspec = array(
+          0 => array('pipe', 'r'),
+          1 => array('pipe', 'w'),
+          2 => array('pipe', 'w')
+        );
+
+        $proc = proc_open("$cmd 2>&1", $dspec, $pipes);
+        if (is_resource($proc)) {
+          fwrite($pipes[0], $stdin);
+          fclose($pipes[0]);
+
+          $out = stream_get_contents($pipes[1]);
+          fclose($pipes[1]);
+          fclose($pipes[2]);
+
+          $output = $out;
+
+          return proc_close($proc);
+        } else
+          return 1;
     }
+
     /**
      * Prints a JPX image to the screen
      *
@@ -97,21 +105,21 @@ class Image_JPEG2000_JPXImage
         ini_set('memory_limit', '2048M');
         if(file_exists($this->outputFile)){
             header('Content-Type: '  .image_type_to_mime_type(IMAGETYPE_JPX));
-		    header('Content-Disposition: attachment; filename="'.basename($this->outputFile).'"');
-		    header('Expires: 0');
-		    header('Cache-Control: must-revalidate');
-		    header('Pragma: public');
-		    header("Content-Encoding: none");
-		    header('Content-Length: ' . filesize($this->outputFile));
-		    @readfile($this->outputFile) or die("");
+            header('Content-Disposition: attachment; filename="'.basename($this->outputFile).'"');
+            header('Expires: 0');
+            header('Cache-Control: must-revalidate');
+            header('Pragma: public');
+            header("Content-Encoding: none");
+            header('Content-Length: ' . filesize($this->outputFile));
+            @readfile($this->outputFile) or die("");
         }else{
-			$filename = basename($this->outputFile);
+            $filename = basename($this->outputFile);
 
-	        header("Content-Length: 0");
-	        header("Content-Type: "   . image_type_to_mime_type(IMAGETYPE_JPX));
-	        header("Content-Disposition: attachment; filename=\"$filename\"");
-	
-	        echo '';
+            header("Content-Length: 0");
+            header("Content-Type: "   . image_type_to_mime_type(IMAGETYPE_JPX));
+            header("Content-Disposition: attachment; filename=\"$filename\"");
+    
+            echo '';
         }
         
     }
