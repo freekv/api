@@ -117,7 +117,7 @@ def find_xml(fptr, offset, length):
         else:
             # The box_length value really is the length of the box!
             num_bytes = box_length
-        if box_id == "xml ":
+        if box_id == b"xml ":
             return hv_parse_this_box(fptr, box_id, start, num_bytes)
 
         if box_length == 0:
@@ -199,7 +199,7 @@ class JP2parser:
         image['CROTA1'] = self._data['CROTA1'] if 'CROTA1' in self._data else 'NULL'
         
         #Fix FITS NaN parameters
-        for key, value in image.iteritems():
+        for key, value in image.items():
             if self._is_string(value):
                 if value.lower() == 'nan' or value.lower() == '-nan':
                     image[key] = 'NULL'
@@ -291,7 +291,7 @@ class JP2parser:
         pydict = xml_to_dict(xml_txt)["meta"]["fits"]
 
         # Fix types
-        for k, v in pydict.iteritems():
+        for k, v in pydict.items():
             if v.isdigit():
                 pydict[k] = int(v)
             elif self._is_float(v):
