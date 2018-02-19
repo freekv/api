@@ -58,7 +58,7 @@ def main(argv):
             process_jp2_images(images, options.destination, cursor, True)
             del images
             images = []
-            print "flushed"
+            print ("Flushed")
     
     # Add images to the database
     if len(images)>0:

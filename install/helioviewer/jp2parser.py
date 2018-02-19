@@ -288,7 +288,7 @@ class JP2parser:
         """
         with open(self._filepath, 'rb') as ifile:
             xml_txt = find_xml(ifile, 0, stat(self._filepath).st_size)
-	pydict = xml_to_dict(xml_txt)["meta"]["fits"]
+        pydict = xml_to_dict(xml_txt)["meta"]["fits"]
 
         # Fix types
         for k, v in pydict.iteritems():

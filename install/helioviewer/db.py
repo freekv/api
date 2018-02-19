@@ -98,7 +98,6 @@ def create_db(adminuser, adminpass, dbhost, dbname, dbuser, dbpass, mysql, adapt
 
     if mysql:
         try:
-           print dbhost
            db = adaptor.connect(autocommit= True, use_unicode=True, charset="utf8", host=dbhost, user=adminuser, passwd=adminpass)
            cursor = db.cursor()
            cursor.execute(create_str)
