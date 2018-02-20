@@ -98,7 +98,7 @@ def insert_images(images, sources, rootdir, cursor, mysql, step_function=None, c
             
         for leaf in leafs:
 
-            if img[leaf] != prev:
+            if img[leaf] != prev or img[leaf] == "GONG":
                 source = source[str(img[leaf])]
             prev = img[leaf]
 

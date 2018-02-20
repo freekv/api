@@ -11,6 +11,8 @@ to the archive and then added to the database.
 To periodically scan a directory for new images, you can simply create a cronjob
 to run update.py.
 '''
+import warnings
+warnings.filterwarnings("ignore")
 import sys
 import os
 import shutil
@@ -19,6 +21,7 @@ from helioviewer.jp2 import find_images, process_jp2_images, create_image_data
 from helioviewer.db  import get_db_cursor
 from helioviewer import init_logger
 from optparse import OptionParser, IndentedHelpFormatter
+from sources.GONG import GONGMap
 
 def main(argv):
     '''Main application access point'''
