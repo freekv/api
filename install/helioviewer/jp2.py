@@ -87,20 +87,16 @@ def insert_images(images, sources, rootdir, cursor, mysql, step_function=None, c
         directory, filename = os.path.split(img['filepath'])
 
         path = "/" + os.path.relpath(directory, rootdir)
-
-        prev = ""
         source = sources
         
         if img['observatory'] == "Hinode":
             leafs = ["observatory", "instrument", "detector", "filter1", "filter2"]
+        elif img['observatory'] == "SDO" or img['observatory']=='PROBA2':
+            leafs = ["observatory", "instrument", "measurement"]
         else:
-            leafs = ["observatory", "instrument", "detector", "measurement"]
-            
+            leafs = ["observatory", "instrument", "detector", "measurement"]           
         for leaf in leafs:
-
-            if img[leaf] != prev or img[leaf] == "GONG":
-                source = source[str(img[leaf])]
-            prev = img[leaf]
+            source = source[str(img[leaf])]
 
         # Enable datasource if it has not already been
         if (not source['enabled']):
